@@ -668,6 +668,83 @@ def spread_cube(lis_dir, lis_input_file, start, end, variable = "Soil Moisture",
         dc = dc.sel(layer = 1)
             
     return dc
+
+def spreadirr_cube(lis_dir, lis_input_file, start, end, variable = "IrrigationRate", 
+                layers = None, subfolder = "IRRIGATION", h = 0, d = "01", freq = "1D",
+                date_shift = False):
+    """
+    Read data cube of LIS ensemble spread.
+    
+    :param str lis_dir: parent directory of the LIS output
+    :param str lis_input_file: path to LIS input file containing the lat/lon information
+    :param str start: start of the data cube (format "DD/MM/YYYY")
+    :param str end: end of the data cube (format "DD/MM/YYYY")
+    :param str var: which variable to read in the data cube for
+    :param list layers: which layers to read in the spread for (choose None for LAI)
+    :param str subfolder: subfolder in which the spread is stored
+    :param int h: UTC time at which LIS outputs (only if freq = "1D")
+    :param str a: updated state (in filename)
+    :param str d: domain (in filename)
+    :param str freq: temporal resolution of the output
+    :param bool date_shift: use this option to shift the LIS output date with "freq". Recommended option for "_tavg" output.
+    """
+    
+    # construct a list of all dates
+    date_list = pd.date_range(start = datetime(int(start[6:10]), int(start[3:5]), int(start[0:2])), 
+                              end = datetime(int(end[6:10]), int(end[3:5]), int(end[0:2])), freq = freq)
+    n_time = len(date_list)
+   
+    # obtain latitude and longitude from lis input file (the output files have missing values)
+    with Dataset(lis_input_file, mode = "r") as f:
+        lats = f.variables["lat"][:,:].data
+        lons = f.variables["lon"][:,:].data
+    
+    # number of grid cells in each direction
+    n_lat = len(lats[:,0])
+    n_lon = len(lons[0,:])
+
+    # number of layers to read in
+    n_layers = 1 if layers is None else len(layers)
+    
+    # initialize data cube object
+    dc = np.ones((n_time, n_layers, n_lat, n_lon))*np.nan
+    
+    for i, date in tqdm(enumerate(date_list + pd.Timedelta(freq) if date_shift else date_list), total = n_time):
+        fname = "{}/{}/{}{:02d}/LIS_HIST_{}{:02d}{:02d}{:02d}00_spread.d{}.nc".\
+                  format(lis_dir, subfolder, date.year, date.month, date.year, date.month, date.day,date.hour+h, d)
+        #try:
+        with Dataset(fname, mode = 'r') as f:
+            var = f"ensspread_{variable}_daily"
+            dc[i, 0, :, :] = f.variables[var][:].data
+
+        #except:
+            # if the file is not there: keep the time slice filled with NaN
+        #    print(f"Warning: could not find file {fname}. Filling time slice with NaN.")
+            
+    dc[dc == -9999] = np.nan  # water
+
+    # store as xarray
+    dc = xr.DataArray(
+        data = dc, 
+        dims = ["time", "layer", "x", "y"],
+        coords = dict(
+            lon = (["x", "y"], lons),
+            lat = (["x", "y"], lats),
+            layer = [1] if layers is None else layers,
+            time = date_list,
+        ),
+        attrs = dict(
+            description = "LIS model spread",
+            variable = var,
+        ),
+    )
+    
+    # for variables without layers (e.g., LAI): omit this dimension
+    if layers is None:
+        dc = dc.sel(layer = 1)
+            
+    return dc
+
     
 def obs_cube(lis_dir, lis_input_file, start, end, rescaled = False, 
              subfolder = "DAOBS", a = "01", d = "01", freq = None):
