@@ -238,7 +238,7 @@ def topo_complexity(lis_input_file, topo_complexity_file = "/dodrio/scratch/proj
 
 
 def lis_cube(lis_dir, lis_input_file, var, start, end, subfolder = "SURFACEMODEL",
-             h = 0, d = "01", freq = "1D", date_shift = False):
+             h = 0, d = "01", freq = "1D", date_shift = False, ens_out = False):
     """
     Read data cube of LIS model output
     
@@ -252,6 +252,7 @@ def lis_cube(lis_dir, lis_input_file, var, start, end, subfolder = "SURFACEMODEL
     :param str d: domain (in filename)
     :param str freq: temporal resolution of the output
     :param bool date_shift: use this option to shift the LIS output date with "freq". Recommended option for "_tavg" output.
+    :param bool ens_out: output individual ensemble members
     """
 
     # warnings related to the date_shift option
@@ -282,20 +283,36 @@ def lis_cube(lis_dir, lis_input_file, var, start, end, subfolder = "SURFACEMODEL
     with Dataset(fname, mode = 'r') as f:
         output = f.variables[var][:].data
     
-    if len(output.shape) == 2:
-        # e.g., LAI
-        n_layers = 1 
-    else:
-        # e.g., soil moisture
+    if len(output.shape) == 2 and not ens_out:
+        # e.g., LAI and no individual ensemble members
+        n_layers = 1
+        n_members = 1
+    elif len(output.shape) == 3 and ens_out:
+        # e.g., LAI and individual ensemble members
+        n_layers = 1
+        n_members = output.shape[0]
+    elif len(output.shape) == 3 and not ens_out:
+        # e.g., soil moisture and no individual ensemble members
         n_layers = output.shape[0]
+        n_members = 1
+    elif len(output.shape) > 3 and ens_out:
+        # e.g., soil moisture and individual ensemble members
+        n_layers = output.shape[0]
+        n_members = output.shape[1]
         
     del date, output
     
     # initialize data cube object
-    if n_layers == 1:
-        dc = np.ones((n_time, n_lat, n_lon))*np.nan
+    if not ens_out:
+        if n_layers == 1:
+            dc = np.ones((n_time, n_lat, n_lon))*np.nan
+        else:
+            dc = np.ones((n_time, n_layers, n_lat, n_lon))*np.nan
     else:
-        dc = np.ones((n_time, n_layers, n_lat, n_lon))*np.nan
+        if n_layers == 1:
+            dc = np.ones((n_time, n_members, n_lat, n_lon))*np.nan
+        else:
+            dc = np.ones((n_time, n_layers, n_members, n_lat, n_lon))*np.nan       
     
     for i, date in tqdm(enumerate(date_list + pd.Timedelta(freq) if date_shift else date_list), total = n_time):
 
@@ -314,36 +331,70 @@ def lis_cube(lis_dir, lis_input_file, var, start, end, subfolder = "SURFACEMODEL
         dc[dc > 1] = np.nan   # glaciers
     
     # store as xarray
-    if n_layers == 1:
-        dc = xr.DataArray(
-            data = dc,
-            dims = ["time", "x", "y"],
-            coords = dict(
-                lon = (["x", "y"], lons),
-                lat = (["x", "y"], lats),
-                time = date_list,
-            ),
-            attrs = dict(
-                description = "LIS model output",
-                variale = var
-            ),
-        )
-        
+    if n_members == 1:
+        if n_layers == 1:
+            dc = xr.DataArray(
+                data = dc,
+                dims = ["time", "x", "y"],
+                coords = dict(
+                    lon = (["x", "y"], lons),
+                    lat = (["x", "y"], lats),
+                    time = date_list,
+                ),
+                attrs = dict(
+                    description = "LIS model output",
+                    variale = var
+                ),
+            )
+            
+        else:
+            dc = xr.DataArray(
+                data = dc,
+                dims = ["time", "layer", "x", "y"],
+                coords = dict(
+                    lon = (["x", "y"], lons),
+                    lat = (["x", "y"], lats),
+                    layer = [i+1 for i in range(n_layers)],
+                    time = date_list,
+                ),
+                attrs = dict(
+                    description = "LIS model output",
+                    variable = var
+                ),
+            )
     else:
-        dc = xr.DataArray(
-            data = dc,
-            dims = ["time", "layer", "x", "y"],
-            coords = dict(
-                lon = (["x", "y"], lons),
-                lat = (["x", "y"], lats),
-                layer = [i+1 for i in range(n_layers)],
-                time = date_list,
-            ),
-            attrs = dict(
-                description = "LIS model output",
-                variable = var
-            ),
-        )
+        if n_layers == 1:
+            dc = xr.DataArray(
+                data = dc,
+                dims = ["time", "member", "x", "y"],
+                coords = dict(
+                    lon = (["x", "y"], lons),
+                    lat = (["x", "y"], lats),
+                    member = [i+1 for i in range(n_members)],
+                    time = date_list,
+                ),
+                attrs = dict(
+                    description = "LIS model output",
+                    variale = var
+                ),
+            )
+            
+        else:
+            dc = xr.DataArray(
+                data = dc,
+                dims = ["time", "layer", "member", "x", "y"],
+                coords = dict(
+                    lon = (["x", "y"], lons),
+                    lat = (["x", "y"], lats),
+                    layer = [i+1 for i in range(n_layers)],
+                    member = [i+1 for i in range(n_members)],
+                    time = date_list,
+                ),
+                attrs = dict(
+                    description = "LIS model output",
+                    variable = var
+                ),
+            )
             
     return dc
 

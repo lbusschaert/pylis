@@ -42,7 +42,7 @@ def forceSquare(ax):
 def map_imshow(map_2d, projection = ccrs.PlateCarree(),
                xmin = None, xmax = None, ymin = None, ymax = None,
                cmap = "Spectral_r", vmin = None, vmax = None, norm = None,
-               cbar = {"show": True}, borders = False, water_hatch = '////////',
+               cbar = {"show": True}, borders = False, water_hatch = '////////', land_color = "white",
                line_width = 0.8, line_color = "black", lake_color = "none", fill_color = "white",
                grid_width = 0.3, grid_delta = 10, grid_labels = [], grid_label_size = 8,
                resol = "50m", return_object = False, title = None, fontsize = 10,
@@ -66,6 +66,7 @@ def map_imshow(map_2d, projection = ccrs.PlateCarree(),
                       "extend", "label", "title", "ticks", "tick_labels", "minorticks".
     :param bool borders: Whether to plot country and state borders.
     :param string water_hatch: Hatch pattern for the water (None for no hatch pattern).
+    :paramm string land_color: Color for land pixels (background).
     :param float line_width: Linewidth used for e.g. coastlines, edges of lakes, borders ...
     :param string line_color: Color of e.g. coastlines.
     :param string fill_color: Color of water and missing values.
@@ -98,6 +99,8 @@ def map_imshow(map_2d, projection = ccrs.PlateCarree(),
                        norm = norm, rasterized = True)
     cs.set_rasterized(True) # necessary for good pdf rendering
     
+    ax.add_feature(cf.LAND.with_scale(resol), zorder=0, facecolor=land_color)
+    
     # add coastlines
     #ax.coastlines(resolution = resol, linewidth = line_width, rasterized = True)
     
@@ -105,9 +108,9 @@ def map_imshow(map_2d, projection = ccrs.PlateCarree(),
     lakes = cartopy.feature.NaturalEarthFeature('physical', 'lakes', scale = resol, 
                                                 edgecolor = line_color, linewidth = line_width,
                                                 facecolor = lake_color)
-    ax.add_feature(lakes, rasterized = True)
+    ax.add_feature(lakes, zorder = 2, rasterized = True)
     ax.add_feature(cf.OCEAN.with_scale(resol), facecolor = fill_color,
-                   hatch = water_hatch, edgecolor = 'white', zorder = 0, rasterized = True)
+                   hatch = water_hatch, edgecolor = 'white', zorder = 1, rasterized = True)
     # ax.add_feature(cf.LAKES.with_scale(resol), facecolor = fill_color,
     #                hatch = water_hatch, edgecolor = 'black', zorder = 0, rasterized = True)
     ax.add_feature(cf.COASTLINE, linewidth = line_width, rasterized = True)
@@ -115,8 +118,8 @@ def map_imshow(map_2d, projection = ccrs.PlateCarree(),
     
     # draw borders
     if borders:
-        ax.add_feature(cf.BORDERS, linewidth = line_width)
-        ax.add_feature(cf.STATES, linewidth = line_width/2)
+        ax.add_feature(cf.BORDERS, linewidth = line_width/2)
+        #ax.add_feature(cf.STATES, linewidth = line_width/2)
 
     
     # add grid
