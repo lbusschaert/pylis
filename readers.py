@@ -155,6 +155,43 @@ def soiltexture(lis_input_file, majority = True, classification_system = "STATSG
     return tc
 
 
+def elev(lis_input_file,latlon=True):
+    """
+    Return elevation
+    
+    :param str lis_input_file: Path to LIS input file containing ELEVATION variable.
+    """
+
+    with Dataset(lis_input_file, mode = "r") as f:
+        elev = f.variables["ELEVATION"][:,:].data
+        lats = f.variables["lat"][:,:].data
+        lons = f.variables["lon"][:,:].data
+
+    elev     = xr.DataArray(
+        data = np.array(elev, dtype = '>f4'),
+        dims = ["x", "y"],
+        coords = dict(
+            lon = (["x", "y"], lons),
+            lat = (["x", "y"], lats),
+        ),
+    )
+
+    if latlon:
+        lat_unique = elev.coords['lat'].values[:,0]
+        lon_unique = elev.coords['lon'].values[0,:]
+
+        # Create a new 1D DataArray with unique lat-lon pairs
+        elev = xr.DataArray(
+            elev.values,
+            dims=["lat", "lon"],  # Define a new dimension called "points"
+            coords={
+                "lat": lat_unique,  # Assign unique lat as a coordinate
+                "lon": lon_unique  # Assign unique lon as a coordinate
+            }
+        )
+
+    return elev
+
 
 def irrigfrac(lis_input_file):
     """

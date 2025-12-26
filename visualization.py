@@ -42,7 +42,7 @@ def forceSquare(ax):
 def map_imshow(map_2d, projection = ccrs.PlateCarree(),
                xmin = None, xmax = None, ymin = None, ymax = None,
                cmap = "Spectral_r", vmin = None, vmax = None, norm = None,
-               cbar = {"show": True}, borders = False, water_hatch = '////////', land_color = "white",
+               cbar = {"show": True}, borders = False, water_hatch = 'none', land_color = "white",
                line_width = 0.8, line_color = "black", lake_color = "none", fill_color = "white",
                grid_width = 0.3, grid_delta = 10, grid_labels = [], grid_label_size = 8,
                resol = "50m", return_object = False, title = None, fontsize = 10,
@@ -110,7 +110,7 @@ def map_imshow(map_2d, projection = ccrs.PlateCarree(),
                                                 facecolor = lake_color)
     ax.add_feature(lakes, zorder = 2, rasterized = True)
     ax.add_feature(cf.OCEAN.with_scale(resol), facecolor = fill_color,
-                   hatch = water_hatch, edgecolor = 'white', zorder = 1, rasterized = True)
+                   edgecolor = 'white', zorder = 1, rasterized = True)
     # ax.add_feature(cf.LAKES.with_scale(resol), facecolor = fill_color,
     #                hatch = water_hatch, edgecolor = 'black', zorder = 0, rasterized = True)
     ax.add_feature(cf.COASTLINE, linewidth = line_width, rasterized = True)
